@@ -12,7 +12,8 @@ import java.util.Vector;
 public class EmployeePanel extends JPanel {
     private JTable table;
     private DefaultTableModel tableModel;
-    private JButton addButton, updateButton, deleteButton;
+    private JButton addButton, updateButton, deleteButton, searchButton;
+    private JTextField searchField;
     private String role;
     private SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
 
@@ -23,7 +24,7 @@ public class EmployeePanel extends JPanel {
         tableModel = new DefaultTableModel();
         tableModel.setColumnIdentifiers(new String[]{"ID", "Name", "Gender", "Age", "Marital Status", "Contact", "Education", "Title", "Salary", "Department ID", "Retire Status", "Resume", "Employee ID", "Salary Date"});
         table = new JTable(tableModel);
-        table.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);  // Turn off auto resize to make it compact
+        table.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
         loadEmployees();
 
         add(new JScrollPane(table), BorderLayout.CENTER);
@@ -44,6 +45,18 @@ public class EmployeePanel extends JPanel {
             deleteButton.addActionListener(e -> deleteEmployee());
         }
 
+        // Search components
+        searchField = new JTextField(15);
+        searchButton = new JButton("Search");
+
+        searchButton.addActionListener(e -> searchEmployee());
+
+        JPanel searchPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 5, 5));
+        searchPanel.add(new JLabel("Search:"));
+        searchPanel.add(searchField);
+        searchPanel.add(searchButton);
+
+        add(searchPanel, BorderLayout.NORTH);
         add(buttonPanel, BorderLayout.SOUTH);
     }
 
@@ -51,6 +64,47 @@ public class EmployeePanel extends JPanel {
         try (Connection conn = DatabaseConnection.getConnection();
              Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery("SELECT id, name, gender, age, marry, contact, education, title, salary, department_id, retire_status, resume, employee_id, salary_date FROM employee")) {
+            tableModel.setRowCount(0);
+            while (rs.next()) {
+                Vector<Object> row = new Vector<>();
+                row.add(rs.getInt("id"));
+                row.add(rs.getString("name"));
+                row.add(rs.getString("gender"));
+                row.add(rs.getInt("age"));
+                row.add(rs.getString("marry"));
+                row.add(rs.getString("contact"));
+                row.add(rs.getString("education"));
+                row.add(rs.getString("title"));
+                row.add(rs.getDouble("salary"));
+                row.add(rs.getInt("department_id"));
+                row.add(rs.getInt("retire_status"));
+                row.add(rs.getString("resume"));
+                row.add(rs.getInt("employee_id"));
+                row.add(rs.getDate("salary_date"));
+                tableModel.addRow(row);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void searchEmployee() {
+        String searchQuery = searchField.getText().trim();
+        if (searchQuery.isEmpty()) {
+            loadEmployees();
+            return;
+        }
+
+        String sql = "SELECT id, name, gender, age, marry, contact, education, title, salary, department_id, retire_status, resume, employee_id, salary_date FROM employee WHERE name LIKE ? OR contact LIKE ? OR education LIKE ?";
+
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            String searchPattern = "%" + searchQuery + "%";
+            pstmt.setString(1, searchPattern);
+            pstmt.setString(2, searchPattern);
+            pstmt.setString(3, searchPattern);
+
+            ResultSet rs = pstmt.executeQuery();
             tableModel.setRowCount(0);
             while (rs.next()) {
                 Vector<Object> row = new Vector<>();
@@ -146,19 +200,18 @@ public class EmployeePanel extends JPanel {
                 pstmt.setInt(10, retireStatus);
                 pstmt.setString(11, resume);
                 pstmt.setInt(12, employeeId);
-                pstmt.setDate(13, getNextMonthDate());  // Assuming salary_date is required
+                pstmt.setDate(13, getNextMonthDate());
                 pstmt.executeUpdate();
 
-                // Optionally, retrieve generated keys if needed
                 ResultSet generatedKeys = pstmt.getGeneratedKeys();
                 if (generatedKeys.next()) {
                     int newEmployeeId = generatedKeys.getInt(1);
                     updateEmployeeSalary(newEmployeeId, BigDecimal.valueOf(salary));
                 }
 
-                loadEmployees();  // Refresh table
+                loadEmployees();
             } catch (SQLException e) {
-                e.printStackTrace();  // Handle SQL exceptions
+                e.printStackTrace();
             }
         }
     }
@@ -179,7 +232,7 @@ public class EmployeePanel extends JPanel {
             int retireStatus = (int) tableModel.getValueAt(selectedRow, 10);
             String resume = (String) tableModel.getValueAt(selectedRow, 11);
             int employeeId = (int) tableModel.getValueAt(selectedRow, 12);
-            Date salaryDate = (Date) tableModel.getValueAt(selectedRow, 13);  // Get current salary_date
+            Date salaryDate = (Date) tableModel.getValueAt(selectedRow, 13);
 
             JTextField nameField = new JTextField(name, 10);
             JTextField genderField = new JTextField(gender, 10);
@@ -193,7 +246,7 @@ public class EmployeePanel extends JPanel {
             JTextField retireStatusField = new JTextField(String.valueOf(retireStatus), 10);
             JTextArea resumeArea = new JTextArea(resume, 3, 10);
             JTextField employeeIdField = new JTextField(String.valueOf(employeeId), 10);
-            JTextField salaryDateField = new JTextField(dateFormat.format(salaryDate), 10);  // Display current salary_date
+            JTextField salaryDateField = new JTextField(dateFormat.format(salaryDate), 10);
 
             JPanel myPanel = new JPanel();
             myPanel.setLayout(new GridLayout(13, 2, 5, 5));
@@ -238,7 +291,7 @@ public class EmployeePanel extends JPanel {
                 retireStatus = Integer.parseInt(retireStatusField.getText());
                 resume = resumeArea.getText();
                 employeeId = Integer.parseInt(employeeIdField.getText());
-                Date newSalaryDate = getNextMonthDate();  // Calculate next month's date
+                Date newSalaryDate = Date.valueOf(salaryDateField.getText());
 
                 String sql = "UPDATE employee SET name=?, gender=?, age=?, marry=?, contact=?, education=?, title=?, salary=?, department_id=?, retire_status=?, resume=?, employee_id=?, salary_date=? WHERE id=?";
                 try (Connection conn = DatabaseConnection.getConnection();
@@ -266,7 +319,7 @@ public class EmployeePanel extends JPanel {
                 }
             }
         } else {
-            JOptionPane.showMessageDialog(null, "Please select a row to update.");
+            JOptionPane.showMessageDialog(this, "Please select a row to update.", "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
 
@@ -287,7 +340,7 @@ public class EmployeePanel extends JPanel {
                 }
             }
         } else {
-            JOptionPane.showMessageDialog(null, "Please select a row to delete.");
+            JOptionPane.showMessageDialog(this, "Please select a row to delete.", "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
 
@@ -308,7 +361,7 @@ public class EmployeePanel extends JPanel {
 
     private Date getNextMonthDate() {
         Calendar calendar = Calendar.getInstance();
-        calendar.add(Calendar.MONTH, 1);  // Add 1 month
+        calendar.add(Calendar.MONTH, 1);
         return new Date(calendar.getTimeInMillis());
     }
 }
