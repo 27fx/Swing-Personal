@@ -48,8 +48,7 @@ public class LoginFrame extends JFrame {
             ResultSet adminRs = adminStmt.executeQuery();
             if (adminRs.next()) {
                 int employeeId = adminRs.getInt("employee_id");
-                MainFrame mainFrame = new MainFrame("admin", employeeId);
-                mainFrame.setVisible(true);
+                openMainFrame("admin", employeeId);
                 this.dispose();
                 return;
             }
@@ -59,8 +58,7 @@ public class LoginFrame extends JFrame {
             userStmt.setString(2, password);
             ResultSet userRs = userStmt.executeQuery();
             if (userRs.next()) {
-                MainFrame mainFrame = new MainFrame("user", -1);
-                mainFrame.setVisible(true);
+                openMainFrame("user", -1);
                 this.dispose();
                 return;
             }
@@ -70,6 +68,11 @@ public class LoginFrame extends JFrame {
         } catch (SQLException e) {
             e.printStackTrace();
         }
+    }
+
+    private void openMainFrame(String role, int employeeId) {
+        MainFrame mainFrame = new MainFrame(role, employeeId);
+        mainFrame.setVisible(true);
     }
 
     public static void main(String[] args) {

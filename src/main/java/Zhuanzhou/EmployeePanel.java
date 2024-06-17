@@ -233,8 +233,11 @@ public class EmployeePanel extends JPanel {
             int employeeId = Integer.parseInt(employeeIdField.getText());
 
             String sql = "INSERT INTO employee (name, gender, age, marry, contact, education, title, salary, department_id, retire_status, resume, employee_id, salary_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            String userSql = "INSERT INTO user (employee_id, username, password) VALUES (?, ?, ?)";
+
             try (Connection conn = DatabaseConnection.getConnection();
-                 PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+                 PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
+                 PreparedStatement userPstmt = conn.prepareStatement(userSql)) {
                 pstmt.setString(1, name);
                 pstmt.setString(2, gender);
                 pstmt.setInt(3, age);
@@ -250,10 +253,19 @@ public class EmployeePanel extends JPanel {
                 pstmt.setDate(13, getNextMonthDate());
                 pstmt.executeUpdate();
 
+                // Retrieve the auto-generated keys to get the new employee's ID
                 ResultSet generatedKeys = pstmt.getGeneratedKeys();
+                int newEmployeeId = -1;
                 if (generatedKeys.next()) {
-                    int newEmployeeId = generatedKeys.getInt(1);
-                    updateEmployeeSalary(newEmployeeId, BigDecimal.valueOf(salary));
+                    newEmployeeId = generatedKeys.getInt(1);
+                }
+
+                // Insert into user table with default username and password
+                if (newEmployeeId != -1) {
+                    userPstmt.setInt(1, newEmployeeId);
+                    userPstmt.setString(2, "user_" + newEmployeeId); // Example username generation
+                    userPstmt.setString(3, "password_" + newEmployeeId); // Example password generation
+                    userPstmt.executeUpdate();
                 }
 
                 loadEmployees();
@@ -262,6 +274,7 @@ public class EmployeePanel extends JPanel {
             }
         }
     }
+
 
     private void updateEmployee() {
         int selectedRow = table.getSelectedRow();
@@ -374,6 +387,8 @@ public class EmployeePanel extends JPanel {
         int selectedRow = table.getSelectedRow();
         if (selectedRow >= 0) {
             int id = (int) tableModel.getValueAt(selectedRow, 0);
+            int employeeId = (int) tableModel.getValueAt(selectedRow, 12); // Get employee_id to delete user record
+
             int confirm = JOptionPane.showConfirmDialog(null, "Are you sure you want to delete this employee?", "Confirm Deletion", JOptionPane.YES_NO_OPTION);
             if (confirm == JOptionPane.YES_OPTION) {
                 String sql = "DELETE FROM employee WHERE id=?";
@@ -381,6 +396,16 @@ public class EmployeePanel extends JPanel {
                      PreparedStatement pstmt = conn.prepareStatement(sql)) {
                     pstmt.setInt(1, id);
                     pstmt.executeUpdate();
+
+                    // Also delete from user table
+                    String userSql = "DELETE FROM user WHERE employee_id=?";
+                    try (PreparedStatement userPstmt = conn.prepareStatement(userSql)) {
+                        userPstmt.setInt(1, employeeId);
+                        userPstmt.executeUpdate();
+                    } catch (SQLException ex) {
+                        ex.printStackTrace();
+                    }
+
                     loadEmployees();
                 } catch (SQLException e) {
                     e.printStackTrace();
