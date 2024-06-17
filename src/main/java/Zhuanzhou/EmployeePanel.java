@@ -169,6 +169,11 @@ public class EmployeePanel extends JPanel {
     private void clearSearch() {
         searchField.setText("");
         loadEmployees();
+
+        // Reset cell renderers to default (remove highlighting)
+        for (int col = 0; col < table.getColumnCount(); col++) {
+            table.getColumnModel().getColumn(col).setCellRenderer(table.getDefaultRenderer(Object.class));
+        }
     }
 
     private void addEmployee() {
