@@ -262,9 +262,9 @@ public class EmployeePanel extends JPanel {
 
                 // Insert into user table with default username and password
                 if (newEmployeeId != -1) {
-                    userPstmt.setInt(1, newEmployeeId);
-                    userPstmt.setString(2, "user_" + newEmployeeId); // Example username generation
-                    userPstmt.setString(3, "password_" + newEmployeeId); // Example password generation
+                    userPstmt.setInt(1, employeeId);
+                    userPstmt.setString(2, String.valueOf(employeeId)); // Example username generation
+                    userPstmt.setString(3, String.valueOf(employeeId)); // Example password generation
                     userPstmt.executeUpdate();
                 }
 

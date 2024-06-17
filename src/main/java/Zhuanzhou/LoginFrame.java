@@ -33,8 +33,13 @@ public class LoginFrame extends JFrame {
     }
 
     private void login() {
-        String username = usernameField.getText();
-        String password = new String(passwordField.getPassword());
+        String username = usernameField.getText().trim();
+        String password = new String(passwordField.getPassword()).trim();
+
+        if (username.isEmpty() || password.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "用户名和密码不能为空！", "错误", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
 
         String adminSql = "SELECT * FROM admin WHERE username = ? AND password = ?";
         String userSql = "SELECT * FROM user WHERE username = ? AND password = ?";
@@ -58,7 +63,8 @@ public class LoginFrame extends JFrame {
             userStmt.setString(2, password);
             ResultSet userRs = userStmt.executeQuery();
             if (userRs.next()) {
-                openMainFrame("user", -1);
+                int employeeId = userRs.getInt("employee_id");
+                openMainFrame("user", employeeId);
                 this.dispose();
                 return;
             }
@@ -67,6 +73,7 @@ public class LoginFrame extends JFrame {
             JOptionPane.showMessageDialog(this, "用户名或密码错误！");
         } catch (SQLException e) {
             e.printStackTrace();
+            JOptionPane.showMessageDialog(this, "登录失败：" + e.getMessage(), "错误", JOptionPane.ERROR_MESSAGE);
         }
     }
 
