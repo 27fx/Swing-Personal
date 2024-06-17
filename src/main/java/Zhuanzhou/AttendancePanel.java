@@ -1,6 +1,8 @@
-package Zhuanzhou;// src/AttendancePanel.java
+package Zhuanzhou;
+
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.DefaultTableCellRenderer;
 import java.awt.*;
 import java.sql.*;
 import java.util.Vector;
@@ -8,16 +10,39 @@ import java.util.Vector;
 public class AttendancePanel extends JPanel {
     private JTable table;
     private DefaultTableModel tableModel;
-    private JButton addButton, updateButton, deleteButton;
+    private JButton addButton, updateButton, deleteButton, searchButton, clearSearchButton;
+    private JTextField searchField;
     private String role;
+    private String searchQuery = "";
 
     public AttendancePanel(String role) {
         this.role = role;
         setLayout(new BorderLayout());
 
+        // 初始化搜索组件
+        searchField = new JTextField(15);
+        searchButton = new JButton("Search");
+        clearSearchButton = new JButton("Clear Search");
+
+        searchButton.addActionListener(e -> searchAttendance());
+        clearSearchButton.addActionListener(e -> clearSearch());
+
+        JPanel searchPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 5, 5));
+        searchPanel.add(new JLabel("Search:"));
+        searchPanel.add(searchField);
+        searchPanel.add(searchButton);
+        searchPanel.add(clearSearchButton);
+
+        add(searchPanel, BorderLayout.NORTH);
+
+        // 初始化表格和按钮面板
         tableModel = new DefaultTableModel();
         tableModel.setColumnIdentifiers(new String[]{"ID", "Employee ID", "Date", "Check-in Time", "Check-out Time", "Status"});
         table = new JTable(tableModel);
+
+        // Set custom cell renderer
+        table.setDefaultRenderer(Object.class, new HighlightRenderer());
+
         loadAttendance();
 
         add(new JScrollPane(table), BorderLayout.CENTER);
@@ -42,9 +67,31 @@ public class AttendancePanel extends JPanel {
     }
 
     private void loadAttendance() {
+        // 确保searchField不为空再执行
+        if (searchField != null) {
+            searchQuery = searchField.getText().trim();
+        }
+
+        String sql = "SELECT id, employeeid, date, checkintime, checkouttime, status FROM Attendance";
+
+        // 如果有搜索条件，添加到查询中
+        if (!searchQuery.isEmpty()) {
+            sql += " WHERE employeeid LIKE ? OR date LIKE ? OR checkintime LIKE ? OR checkouttime LIKE ? OR status LIKE ?";
+        }
+
         try (Connection conn = DatabaseConnection.getConnection();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery("SELECT id, employeeid, date, checkintime, checkouttime, status FROM Attendance")) {
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            if (!searchQuery.isEmpty()) {
+                String searchPattern = "%" + searchQuery + "%";
+                pstmt.setString(1, searchPattern);
+                pstmt.setString(2, searchPattern);
+                pstmt.setString(3, searchPattern);
+                pstmt.setString(4, searchPattern);
+                pstmt.setString(5, searchPattern);
+            }
+
+            ResultSet rs = pstmt.executeQuery();
             tableModel.setRowCount(0);
             while (rs.next()) {
                 Vector<Object> row = new Vector<>();
@@ -60,6 +107,19 @@ public class AttendancePanel extends JPanel {
             e.printStackTrace();
         }
     }
+
+    private void searchAttendance() {
+        loadAttendance();
+    }
+
+    private void clearSearch() {
+        searchField.setText("");
+        searchQuery = "";
+        loadAttendance();
+    }
+
+
+
 
     private void addAttendance() {
         JTextField employeeIdField = new JTextField(10);
@@ -175,6 +235,21 @@ public class AttendancePanel extends JPanel {
             }
         } else {
             JOptionPane.showMessageDialog(this, "请选择要删除的考勤记录！");
+        }
+    }
+
+    // Custom cell renderer to highlight search terms
+    private class HighlightRenderer extends DefaultTableCellRenderer {
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+            Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+
+            if (value != null && !searchQuery.isEmpty() && value.toString().toLowerCase().contains(searchQuery.toLowerCase())) {
+                c.setBackground(Color.YELLOW);
+            } else {
+                c.setBackground(Color.WHITE);
+            }
+            return c;
         }
     }
 }

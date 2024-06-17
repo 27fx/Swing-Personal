@@ -1,6 +1,7 @@
 package Zhuanzhou;
 
 import javax.swing.*;
+import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.sql.*;
@@ -9,7 +10,8 @@ import java.util.Vector;
 public class AnnouncePanel extends JPanel {
     private JTable table;
     private DefaultTableModel tableModel;
-    private JButton addButton, updateButton, deleteButton;
+    private JButton addButton, updateButton, deleteButton, searchButton, clearSearchButton;
+    private JTextField searchField;
     private String role;
     private int employeeId;
 
@@ -18,10 +20,31 @@ public class AnnouncePanel extends JPanel {
         this.employeeId = employeeId; // Set the employee ID
         setLayout(new BorderLayout());
 
+        // 初始化搜索组件
+        searchField = new JTextField(15);
+        searchButton = new JButton("Search");
+        clearSearchButton = new JButton("Clear Search");
+
+        searchButton.addActionListener(e -> searchAnnounces());
+        clearSearchButton.addActionListener(e -> clearSearch());
+
+        JPanel searchPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 5, 5));
+        searchPanel.add(new JLabel("Search:"));
+        searchPanel.add(searchField);
+        searchPanel.add(searchButton);
+        searchPanel.add(clearSearchButton);
+
+        add(searchPanel, BorderLayout.NORTH);
+
+        // 初始化表格和按钮面板
         tableModel = new DefaultTableModel();
         tableModel.setColumnIdentifiers(new String[]{"ID", "Title", "Content", "Publish Time", "Creator ID"});
         table = new JTable(tableModel);
-        loadAnnounces();
+
+        // 使用自定义渲染器来高亮显示搜索关键词
+        table.setDefaultRenderer(Object.class, new HighlightRenderer());
+
+        loadAnnounces();  // 初始加载所有公告
 
         add(new JScrollPane(table), BorderLayout.CENTER);
 
@@ -35,7 +58,7 @@ public class AnnouncePanel extends JPanel {
             buttonPanel.add(updateButton);
             buttonPanel.add(deleteButton);
 
-            // Add action listeners
+            // 添加按钮的监听器
             addButton.addActionListener(e -> addAnnounce());
             updateButton.addActionListener(e -> updateAnnounce());
             deleteButton.addActionListener(e -> deleteAnnounce());
@@ -45,9 +68,10 @@ public class AnnouncePanel extends JPanel {
     }
 
     private void loadAnnounces() {
+        String sql = "SELECT id, title, content, publishtime, creatorId FROM Announcement";
         try (Connection conn = DatabaseConnection.getConnection();
              Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery("SELECT id, title, content, publishtime, creatorId FROM Announcement")) {
+             ResultSet rs = stmt.executeQuery(sql)) {
             tableModel.setRowCount(0);
             while (rs.next()) {
                 Vector<Object> row = new Vector<>();
@@ -86,7 +110,7 @@ public class AnnouncePanel extends JPanel {
                 pstmt.setTimestamp(3, new Timestamp(System.currentTimeMillis()));
                 pstmt.setInt(4, employeeId); // Use the employee ID
                 pstmt.executeUpdate();
-                loadAnnounces();  // Reload announcements
+                loadAnnounces();  // 重新加载公告
             } catch (SQLException e) {
                 e.printStackTrace();
             }
@@ -121,7 +145,7 @@ public class AnnouncePanel extends JPanel {
                     pstmt.setString(2, content);
                     pstmt.setInt(3, id);
                     pstmt.executeUpdate();
-                    loadAnnounces();  // Reload announcements
+                    loadAnnounces();  // 重新加载公告
                 } catch (SQLException e) {
                     e.printStackTrace();
                 }
@@ -140,12 +164,62 @@ public class AnnouncePanel extends JPanel {
                  PreparedStatement pstmt = conn.prepareStatement(sql)) {
                 pstmt.setInt(1, id);
                 pstmt.executeUpdate();
-                loadAnnounces();  // Reload announcements
+                loadAnnounces();  // 重新加载公告
             } catch (SQLException e) {
                 e.printStackTrace();
             }
         } else {
             JOptionPane.showMessageDialog(this, "Please select an announcement to delete.");
+        }
+    }
+
+    private void searchAnnounces() {
+        String searchText = searchField.getText().trim();
+        String sql = "SELECT id, title, content, publishtime, creatorId FROM Announcement WHERE title LIKE ? OR content LIKE ?";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            String searchPattern = "%" + searchText + "%";
+            pstmt.setString(1, searchPattern);
+            pstmt.setString(2, searchPattern);
+
+            ResultSet rs = pstmt.executeQuery();
+            tableModel.setRowCount(0);
+            while (rs.next()) {
+                Vector<Object> row = new Vector<>();
+                row.add(rs.getInt("id"));
+                row.add(rs.getString("title"));
+                row.add(rs.getString("content"));
+                row.add(rs.getTimestamp("publishtime"));
+                row.add(rs.getInt("creatorId"));
+                tableModel.addRow(row);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void clearSearch() {
+        searchField.setText("");
+        loadAnnounces();  // 清除搜索并重新加载所有公告
+    }
+
+    // 自定义渲染器，用于将搜索关键词高亮显示
+    private class HighlightRenderer extends DefaultTableCellRenderer {
+        private static final long serialVersionUID = 1L;
+
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+            Component cellComponent = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+
+            // 如果是字符串类型，并且搜索字段非空，且当前单元格的文本包含搜索文本，则进行高亮处理
+            if (value instanceof String && !searchField.getText().isEmpty()) {
+                String searchText = searchField.getText().trim();
+                String text = (String) value;
+                String htmlText = text.replaceAll("(?i)" + searchText, "<span style='background: yellow;'>$0</span>");
+                ((JLabel) cellComponent).setText("<html>" + htmlText + "</html>");
+            }
+
+            return cellComponent;
         }
     }
 }

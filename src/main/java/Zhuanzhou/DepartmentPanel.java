@@ -1,6 +1,8 @@
-package Zhuanzhou;// src/DepartmentPanel.java
+package Zhuanzhou;
+
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.DefaultTableCellRenderer;
 import java.awt.*;
 import java.sql.*;
 import java.util.Vector;
@@ -8,16 +10,26 @@ import java.util.Vector;
 public class DepartmentPanel extends JPanel {
     private JTable table;
     private DefaultTableModel tableModel;
-    private JButton addButton, updateButton, deleteButton;
+    private JButton addButton, updateButton, deleteButton, searchButton, clearSearchButton;
+    private JTextField searchField;
     private String role;
+    private String searchQuery = "";
 
     public DepartmentPanel(String role) {
         this.role = role;
         setLayout(new BorderLayout());
 
+        // Initialize the search field
+        searchField = new JTextField(15);
+        // Create the table model and set column identifiers
         tableModel = new DefaultTableModel();
         tableModel.setColumnIdentifiers(new String[]{"ID", "Name", "Code", "Manager", "Telephone"});
         table = new JTable(tableModel);
+
+        // Set custom cell renderer
+        table.setDefaultRenderer(Object.class, new HighlightRenderer());
+
+        // Load departments data
         loadDepartments();
 
         add(new JScrollPane(table), BorderLayout.CENTER);
@@ -38,13 +50,43 @@ public class DepartmentPanel extends JPanel {
             deleteButton.addActionListener(e -> deleteDepartment());
         }
 
+        // Search components
+        searchButton = new JButton("Search");
+        clearSearchButton = new JButton("Clear Search");
+
+        searchButton.addActionListener(e -> searchDepartment());
+        clearSearchButton.addActionListener(e -> clearSearch());
+
+        JPanel searchPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 5, 5));
+        searchPanel.add(new JLabel("Search:"));
+        searchPanel.add(searchField);
+        searchPanel.add(searchButton);
+        searchPanel.add(clearSearchButton);
+
+        add(searchPanel, BorderLayout.NORTH);
         add(buttonPanel, BorderLayout.SOUTH);
     }
 
     private void loadDepartments() {
+        String sql = "SELECT id, name, code, manager, telephone FROM department";
+        searchQuery = searchField.getText().trim();
+
+        if (!searchQuery.isEmpty()) {
+            sql += " WHERE name LIKE ? OR code LIKE ? OR manager LIKE ? OR telephone LIKE ?";
+        }
+
         try (Connection conn = DatabaseConnection.getConnection();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery("SELECT id, name, code, manager, telephone FROM department")) {
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            if (!searchQuery.isEmpty()) {
+                String searchPattern = "%" + searchQuery + "%";
+                pstmt.setString(1, searchPattern);
+                pstmt.setString(2, searchPattern);
+                pstmt.setString(3, searchPattern);
+                pstmt.setString(4, searchPattern);
+            }
+
+            ResultSet rs = pstmt.executeQuery();
             tableModel.setRowCount(0);
             while (rs.next()) {
                 Vector<Object> row = new Vector<>();
@@ -58,6 +100,16 @@ public class DepartmentPanel extends JPanel {
         } catch (SQLException e) {
             e.printStackTrace();
         }
+    }
+
+    private void searchDepartment() {
+        loadDepartments();
+    }
+
+    private void clearSearch() {
+        searchField.setText("");
+        searchQuery = "";
+        loadDepartments();
     }
 
     private void addDepartment() {
@@ -91,7 +143,7 @@ public class DepartmentPanel extends JPanel {
                 pstmt.setString(3, manager);
                 pstmt.setString(4, telephone);
                 pstmt.executeUpdate();
-                loadDepartments();  // 重新加载部门信息
+                loadDepartments();  // Reload department information
             } catch (SQLException e) {
                 e.printStackTrace();
             }
@@ -138,7 +190,7 @@ public class DepartmentPanel extends JPanel {
                     pstmt.setString(4, telephone);
                     pstmt.setInt(5, id);
                     pstmt.executeUpdate();
-                    loadDepartments();  // 重新加载部门信息
+                    loadDepartments();  // Reload department information
                 } catch (SQLException e) {
                     e.printStackTrace();
                 }
@@ -157,12 +209,32 @@ public class DepartmentPanel extends JPanel {
                  PreparedStatement pstmt = conn.prepareStatement(sql)) {
                 pstmt.setInt(1, id);
                 pstmt.executeUpdate();
-                loadDepartments();  // 重新加载部门信息
+                loadDepartments();  // Reload department information
             } catch (SQLException e) {
                 e.printStackTrace();
             }
         } else {
             JOptionPane.showMessageDialog(this, "请选择要删除的部门！");
+        }
+    }
+
+    // Custom cell renderer to highlight search terms
+    private class HighlightRenderer extends DefaultTableCellRenderer {
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+            Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+            if (value != null && searchQuery != null && !searchQuery.isEmpty()) {
+                String valStr = value.toString().toLowerCase();
+                String searchStr = searchQuery.toLowerCase();
+                if (valStr.contains(searchStr)) {
+                    c.setBackground(Color.YELLOW);
+                } else {
+                    c.setBackground(Color.WHITE);
+                }
+            } else {
+                c.setBackground(Color.WHITE);
+            }
+            return c;
         }
     }
 }

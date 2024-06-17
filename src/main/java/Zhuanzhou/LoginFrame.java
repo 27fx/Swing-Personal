@@ -5,7 +5,7 @@ import java.awt.*;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.sql.*;
+import java.sql.SQLException;
 
 public class LoginFrame extends JFrame {
     private JTextField usernameField;
@@ -41,6 +41,7 @@ public class LoginFrame extends JFrame {
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement adminStmt = conn.prepareStatement(adminSql);
              PreparedStatement userStmt = conn.prepareStatement(userSql)) {
+
             // Check admin credentials
             adminStmt.setString(1, username);
             adminStmt.setString(2, password);
