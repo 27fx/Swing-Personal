@@ -20,6 +20,7 @@
             tabbedPane.add("员工管理", new EmployeePanel(role));
             tabbedPane.add("部门管理", new DepartmentPanel(role));
             tabbedPane.add("考勤管理", new AttendancePanel(role));
+            tabbedPane.add("公告管理",new AnnouncePanel(role,employeeId));
 
             // Only add SalaryPanel if user is admin
             if ("admin".equals(role)) {

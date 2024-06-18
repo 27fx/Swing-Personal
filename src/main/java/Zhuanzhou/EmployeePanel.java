@@ -1,13 +1,14 @@
 package Zhuanzhou;
 
 import javax.swing.*;
-import javax.swing.table.DefaultTableModel;
 import javax.swing.table.DefaultTableCellRenderer;
+import javax.swing.table.DefaultTableModel;
 import java.awt.*;
+import java.awt.event.FocusAdapter;
+import java.awt.event.FocusEvent;
 import java.math.BigDecimal;
 import java.sql.*;
 import java.text.SimpleDateFormat;
-import java.util.Calendar;
 import java.util.Vector;
 
 public class EmployeePanel extends JPanel {
@@ -68,6 +69,7 @@ public class EmployeePanel extends JPanel {
         try (Connection conn = DatabaseConnection.getConnection();
              Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery("SELECT id, name, gender, age, marry, contact, education, title, salary, department_id, retire_status, resume, employee_id, salary_date FROM employee")) {
+
             tableModel.setRowCount(0);
             while (rs.next()) {
                 Vector<Object> row = new Vector<>();
@@ -87,10 +89,18 @@ public class EmployeePanel extends JPanel {
                 row.add(rs.getDate("salary_date"));
                 tableModel.addRow(row);
             }
+
+            // 设置表格单元格不可编辑
+            for (int col = 0; col < table.getColumnCount(); col++) {
+                Class<?> columnClass = table.getColumnClass(col);
+                table.setDefaultEditor(columnClass, null); // 设置为null以禁用编辑器
+            }
+
         } catch (SQLException e) {
             e.printStackTrace();
         }
     }
+
 
     private void searchEmployee() {
         String searchQuery = searchField.getText().trim();
@@ -100,20 +110,20 @@ public class EmployeePanel extends JPanel {
         }
 
         String sql = "SELECT id, name, gender, age, marry, contact, education, title, salary, department_id, retire_status, resume, employee_id, salary_date " +
-                     "FROM employee WHERE " +
-                     "name LIKE ? OR " +
-                     "gender LIKE ? OR " +
-                     "CAST(age AS CHAR) LIKE ? OR " +
-                     "marry LIKE ? OR " +
-                     "contact LIKE ? OR " +
-                     "education LIKE ? OR " +
-                     "title LIKE ? OR " +
-                     "CAST(salary AS CHAR) LIKE ? OR " +
-                     "CAST(department_id AS CHAR) LIKE ? OR " +
-                     "CAST(retire_status AS CHAR) LIKE ? OR " +
-                     "resume LIKE ? OR " +
-                     "CAST(employee_id AS CHAR) LIKE ? OR " +
-                     "CAST(salary_date AS CHAR) LIKE ?";
+                "FROM employee WHERE " +
+                "name LIKE ? OR " +
+                "gender LIKE ? OR " +
+                "CAST(age AS CHAR) LIKE ? OR " +
+                "marry LIKE ? OR " +
+                "contact LIKE ? OR " +
+                "education LIKE ? OR " +
+                "title LIKE ? OR " +
+                "CAST(salary AS CHAR) LIKE ? OR " +
+                "CAST(department_id AS CHAR) LIKE ? OR " +
+                "CAST(retire_status AS CHAR) LIKE ? OR " +
+                "resume LIKE ? OR " +
+                "CAST(employee_id AS CHAR) LIKE ? OR " +
+                "CAST(salary_date AS CHAR) LIKE ?";
 
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -220,24 +230,31 @@ public class EmployeePanel extends JPanel {
         int result = JOptionPane.showConfirmDialog(null, myPanel, "Please Enter Employee Details", JOptionPane.OK_CANCEL_OPTION);
         if (result == JOptionPane.OK_OPTION) {
             String name = nameField.getText();
+            String employeeIdText = employeeIdField.getText();
+            if (name.isEmpty() || employeeIdText.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Name and Employee ID are required fields.", "Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            int employeeId = Integer.parseInt(employeeIdText);
             String gender = genderField.getText();
-            int age = Integer.parseInt(ageField.getText());
+            int age = ageField.getText().isEmpty() ? 0 : Integer.parseInt(ageField.getText());
             String marry = marryField.getText();
             String contact = contactField.getText();
             String education = educationField.getText();
             String title = titleField.getText();
-            double salary = Double.parseDouble(salaryField.getText());
-            int departmentId = Integer.parseInt(departmentIdField.getText());
-            int retireStatus = Integer.parseInt(retireStatusField.getText());
+            double salary = salaryField.getText().isEmpty() ? 0.0 : Double.parseDouble(salaryField.getText());
+            int departmentId = departmentIdField.getText().isEmpty() ? 0 : Integer.parseInt(departmentIdField.getText());
+            int retireStatus = retireStatusField.getText().isEmpty() ? 0 : Integer.parseInt(retireStatusField.getText());
             String resume = resumeArea.getText();
-            int employeeId = Integer.parseInt(employeeIdField.getText());
 
-            String sql = "INSERT INTO employee (name, gender, age, marry, contact, education, title, salary, department_id, retire_status, resume, employee_id, salary_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-            String userSql = "INSERT INTO user (employee_id, username, password) VALUES (?, ?, ?)";
+            // Check if department ID exists
+            if (!departmentExists(departmentId)) {
+                JOptionPane.showMessageDialog(this, "Department ID does not exist.", "Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
 
             try (Connection conn = DatabaseConnection.getConnection();
-                 PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
-                 PreparedStatement userPstmt = conn.prepareStatement(userSql)) {
+                 PreparedStatement pstmt = conn.prepareStatement("INSERT INTO employee (name, gender, age, marry, contact, education, title, salary, department_id, retire_status, resume, employee_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
                 pstmt.setString(1, name);
                 pstmt.setString(2, gender);
                 pstmt.setInt(3, age);
@@ -250,24 +267,8 @@ public class EmployeePanel extends JPanel {
                 pstmt.setInt(10, retireStatus);
                 pstmt.setString(11, resume);
                 pstmt.setInt(12, employeeId);
-                pstmt.setDate(13, getNextMonthDate());
+
                 pstmt.executeUpdate();
-
-                // Retrieve the auto-generated keys to get the new employee's ID
-                ResultSet generatedKeys = pstmt.getGeneratedKeys();
-                int newEmployeeId = -1;
-                if (generatedKeys.next()) {
-                    newEmployeeId = generatedKeys.getInt(1);
-                }
-
-                // Insert into user table with default username and password
-                if (newEmployeeId != -1) {
-                    userPstmt.setInt(1, employeeId);
-                    userPstmt.setString(2, String.valueOf(employeeId)); // Example username generation
-                    userPstmt.setString(3, String.valueOf(employeeId)); // Example password generation
-                    userPstmt.executeUpdate();
-                }
-
                 loadEmployees();
             } catch (SQLException e) {
                 e.printStackTrace();
@@ -275,6 +276,18 @@ public class EmployeePanel extends JPanel {
         }
     }
 
+    private boolean departmentExists(int departmentId) {
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement("SELECT 1 FROM department WHERE id = ?")) {
+            pstmt.setInt(1, departmentId);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                return rs.next();
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
 
     private void updateEmployee() {
         int selectedRow = table.getSelectedRow();
@@ -309,7 +322,7 @@ public class EmployeePanel extends JPanel {
             JTextField salaryDateField = new JTextField(dateFormat.format(salaryDate), 10);
 
             JPanel myPanel = new JPanel();
-            myPanel.setLayout(new GridLayout(13, 2, 5, 5));
+            myPanel.setLayout(new GridLayout(14, 2, 5, 5));
             myPanel.add(new JLabel("Name:"));
             myPanel.add(nameField);
             myPanel.add(new JLabel("Gender:"));
@@ -337,8 +350,20 @@ public class EmployeePanel extends JPanel {
             myPanel.add(new JLabel("Salary Date:"));
             myPanel.add(salaryDateField);
 
-            int result = JOptionPane.showConfirmDialog(null, myPanel, "Please Update Employee Details", JOptionPane.OK_CANCEL_OPTION);
+            // Add a focus listener to departmentIdField for immediate existence check
+            departmentIdField.addFocusListener(new FocusAdapter() {
+                @Override
+                public void focusLost(FocusEvent e) {
+                    int newDepartmentId = Integer.parseInt(departmentIdField.getText().trim());
+                    if (!departmentExists(newDepartmentId)) {
+                        JOptionPane.showMessageDialog(myPanel, "Department ID does not exist.", "Error", JOptionPane.ERROR_MESSAGE);
+                    }
+                }
+            });
+
+            int result = JOptionPane.showConfirmDialog(null, myPanel, "Update Employee Details", JOptionPane.OK_CANCEL_OPTION);
             if (result == JOptionPane.OK_OPTION) {
+                // Retrieve updated values from fields
                 name = nameField.getText();
                 gender = genderField.getText();
                 age = Integer.parseInt(ageField.getText());
@@ -352,6 +377,12 @@ public class EmployeePanel extends JPanel {
                 resume = resumeArea.getText();
                 employeeId = Integer.parseInt(employeeIdField.getText());
                 Date newSalaryDate = Date.valueOf(salaryDateField.getText());
+
+                // Check if department ID exists (again for safety)
+                if (!departmentExists(departmentId)) {
+                    JOptionPane.showMessageDialog(myPanel, "Department ID does not exist.", "Error", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
 
                 String sql = "UPDATE employee SET name=?, gender=?, age=?, marry=?, contact=?, education=?, title=?, salary=?, department_id=?, retire_status=?, resume=?, employee_id=?, salary_date=? WHERE id=?";
                 try (Connection conn = DatabaseConnection.getConnection();
@@ -372,8 +403,7 @@ public class EmployeePanel extends JPanel {
                     pstmt.setInt(14, id);
                     pstmt.executeUpdate();
 
-                    updateEmployeeSalary(employeeId, BigDecimal.valueOf(salary));
-                    loadEmployees();
+                    loadEmployees(); // Refresh the table after update
                 } catch (SQLException e) {
                     e.printStackTrace();
                 }
@@ -383,68 +413,51 @@ public class EmployeePanel extends JPanel {
         }
     }
 
+
     private void deleteEmployee() {
         int selectedRow = table.getSelectedRow();
         if (selectedRow >= 0) {
             int id = (int) tableModel.getValueAt(selectedRow, 0);
-            int employeeId = (int) tableModel.getValueAt(selectedRow, 12); // Get employee_id to delete user record
-
-            int confirm = JOptionPane.showConfirmDialog(null, "Are you sure you want to delete this employee?", "Confirm Deletion", JOptionPane.YES_NO_OPTION);
+            int confirm = JOptionPane.showConfirmDialog(this, "Are you sure you want to delete this employee?", "Confirm Delete", JOptionPane.YES_NO_OPTION);
             if (confirm == JOptionPane.YES_OPTION) {
-                String sql = "DELETE FROM employee WHERE id=?";
                 try (Connection conn = DatabaseConnection.getConnection();
-                     PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                     PreparedStatement pstmt = conn.prepareStatement("DELETE FROM employee WHERE id = ?")) {
                     pstmt.setInt(1, id);
                     pstmt.executeUpdate();
-
-                    // Also delete from user table
-                    String userSql = "DELETE FROM user WHERE employee_id=?";
-                    try (PreparedStatement userPstmt = conn.prepareStatement(userSql)) {
-                        userPstmt.setInt(1, employeeId);
-                        userPstmt.executeUpdate();
-                    } catch (SQLException ex) {
-                        ex.printStackTrace();
-                    }
-
                     loadEmployees();
                 } catch (SQLException e) {
                     e.printStackTrace();
                 }
             }
         } else {
-            JOptionPane.showMessageDialog(this, "Please select a row to delete.", "Error", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Please select an employee to delete.", "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
 
-    private void updateEmployeeSalary(int employeeId, BigDecimal newSalary) {
-        String sql = "INSERT INTO salary (employee_id, salary, adjust_date) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE salary=?, adjust_date=?";
+    public void updateEmployeeSalary(int employeeId, BigDecimal newSalary, java.sql.Date salaryDate) {
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setInt(1, employeeId);
-            pstmt.setBigDecimal(2, newSalary);
-            pstmt.setDate(3, new Date(System.currentTimeMillis()));
-            pstmt.setBigDecimal(4, newSalary);
-            pstmt.setDate(5, new Date(System.currentTimeMillis()));
+             PreparedStatement pstmt = conn.prepareStatement("UPDATE employee SET salary = ?, salary_date = ? WHERE employee_id = ?")) {
+            pstmt.setBigDecimal(1, newSalary);
+            pstmt.setDate(2, salaryDate);
+            pstmt.setInt(3, employeeId);
+
             pstmt.executeUpdate();
+            loadEmployees();
         } catch (SQLException e) {
             e.printStackTrace();
         }
     }
 
-    private Date getNextMonthDate() {
-        Calendar calendar = Calendar.getInstance();
-        calendar.add(Calendar.MONTH, 1);
-        return new Date(calendar.getTimeInMillis());
-    }
+    public void updateEmployeeDepartment(int employeeId, int newDepartmentId) {
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement("UPDATE employee SET department_id = ? WHERE employee_id = ?")) {
+            pstmt.setInt(1, newDepartmentId);
+            pstmt.setInt(2, employeeId);
 
-    public static void main(String[] args) {
-        // Example of using EmployeePanel in a JFrame
-        JFrame frame = new JFrame("Employee Management System");
-        EmployeePanel employeePanel = new EmployeePanel("admin");
-        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.add(employeePanel);
-        frame.pack();
-        frame.setVisible(true);
+            pstmt.executeUpdate();
+            loadEmployees();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
     }
 }
-

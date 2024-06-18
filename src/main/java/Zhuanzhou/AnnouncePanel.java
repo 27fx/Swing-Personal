@@ -82,6 +82,14 @@ public class AnnouncePanel extends JPanel {
                 row.add(rs.getInt("creatorId"));
                 tableModel.addRow(row);
             }
+
+
+
+
+            for (int col = 0; col < table.getColumnCount(); col++) {
+                Class<?> columnClass = table.getColumnClass(col);
+                table.setDefaultEditor(columnClass, null); // 设置为null以禁用编辑器
+            }
         } catch (SQLException e) {
             e.printStackTrace();
         }

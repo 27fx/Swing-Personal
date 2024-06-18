@@ -4,6 +4,8 @@ import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.DefaultTableCellRenderer;
 import java.awt.*;
+import java.awt.event.FocusAdapter;
+import java.awt.event.FocusEvent;
 import java.sql.*;
 import java.util.Vector;
 
@@ -103,6 +105,13 @@ public class AttendancePanel extends JPanel {
                 row.add(rs.getString("status"));
                 tableModel.addRow(row);
             }
+
+
+            for (int col = 0; col < table.getColumnCount(); col++) {
+                Class<?> columnClass = table.getColumnClass(col);
+                table.setDefaultEditor(columnClass, null); // 设置为null以禁用编辑器
+            }
+
         } catch (SQLException e) {
             e.printStackTrace();
         }
@@ -148,7 +157,14 @@ public class AttendancePanel extends JPanel {
             Time checkOutTime = Time.valueOf(checkOutTimeField.getText());
             String status = statusField.getText();
 
+            // Validate check-in and check-out times
+            if (checkInTime.compareTo(checkOutTime) >= 0) {
+                JOptionPane.showMessageDialog(null, "Check-in time must be before Check-out time.", "Invalid Time", JOptionPane.ERROR_MESSAGE);
+                return; // Do not proceed with insertion
+            }
+
             String sql = "INSERT INTO Attendance (employeeid, date, checkintime, checkouttime, status) VALUES (?, ?, ?, ?, ?)";
+
             try (Connection conn = DatabaseConnection.getConnection();
                  PreparedStatement pstmt = conn.prepareStatement(sql)) {
                 pstmt.setInt(1, employeeId);
@@ -157,7 +173,7 @@ public class AttendancePanel extends JPanel {
                 pstmt.setTime(4, checkOutTime);
                 pstmt.setString(5, status);
                 pstmt.executeUpdate();
-                loadAttendance();  // 重新加载考勤信息
+                loadAttendance();  // Reload attendance information
             } catch (SQLException e) {
                 e.printStackTrace();
             }
