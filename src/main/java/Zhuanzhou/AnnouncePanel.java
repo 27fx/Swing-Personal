@@ -83,9 +83,7 @@ public class AnnouncePanel extends JPanel {
                 tableModel.addRow(row);
             }
 
-
-
-
+            // 禁用表格的编辑功能
             for (int col = 0; col < table.getColumnCount(); col++) {
                 Class<?> columnClass = table.getColumnClass(col);
                 table.setDefaultEditor(columnClass, null); // 设置为null以禁用编辑器
@@ -131,6 +129,14 @@ public class AnnouncePanel extends JPanel {
             int id = (int) tableModel.getValueAt(selectedRow, 0);
             String title = (String) tableModel.getValueAt(selectedRow, 1);
             String content = (String) tableModel.getValueAt(selectedRow, 2);
+            Timestamp signInTime = (Timestamp) tableModel.getValueAt(selectedRow, 3);
+            Timestamp signOutTime = new Timestamp(System.currentTimeMillis());
+
+            // Check if the sign-out time is valid
+            if (!isValidTime(signInTime, signOutTime)) {
+                JOptionPane.showMessageDialog(this, "Sign-out time must be after sign-in time.");
+                return; // Exit method without updating
+            }
 
             JTextField titleField = new JTextField(title, 10);
             JTextField contentField = new JTextField(content, 10);
@@ -229,5 +235,13 @@ public class AnnouncePanel extends JPanel {
 
             return cellComponent;
         }
+    }
+
+    private boolean isValidTime(Timestamp signInTime, Timestamp signOutTime) {
+        // Check if sign-out time is after sign-in time
+        if (signOutTime != null && signOutTime.before(signInTime)) {
+            return false;
+        }
+        return true;
     }
 }

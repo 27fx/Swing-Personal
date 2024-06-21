@@ -27,7 +27,7 @@ public class LoginFrame extends JFrame {
 
         JButton loginButton = new JButton("登录");
         loginButton.addActionListener(e -> login());
-        add(loginButton);
+        this.add(loginButton);
 
         setLocationRelativeTo(null);
     }
@@ -58,7 +58,7 @@ public class LoginFrame extends JFrame {
                 return;
             }
 
-            // Check user credentials
+
             userStmt.setString(1, username);
             userStmt.setString(2, password);
             ResultSet userRs = userStmt.executeQuery();
@@ -69,7 +69,7 @@ public class LoginFrame extends JFrame {
                 return;
             }
 
-            // If neither, show error
+
             JOptionPane.showMessageDialog(this, "用户名或密码错误！");
         } catch (SQLException e) {
             e.printStackTrace();

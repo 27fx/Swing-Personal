@@ -22,14 +22,13 @@
             tabbedPane.add("考勤管理", new AttendancePanel(role));
             tabbedPane.add("公告管理",new AnnouncePanel(role,employeeId));
 
-            // Only add SalaryPanel if user is admin
+
             if ("admin".equals(role)) {
                 tabbedPane.add("工资管理", new SalaryPanel(role));
             }
 
             add(tabbedPane);
 
-            // Add menu item for account settings
             JMenuBar menuBar = new JMenuBar();
             JMenu optionsMenu = new JMenu("选项");
             JMenuItem accountSettingsItem = new JMenuItem("账户设置");
