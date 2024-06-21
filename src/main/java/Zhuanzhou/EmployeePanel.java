@@ -82,7 +82,7 @@ public class EmployeePanel extends JPanel {
 
 
     private void updateOwnEmployee() {
-        int selectedRow = 0; // Default to the first row if needed, or you can adjust as necessary
+        int selectedRow = 0;
         int id = (int) tableModel.getValueAt(selectedRow, 0);
         String currentName = (String) tableModel.getValueAt(selectedRow, 1);
         String currentGender = (String) tableModel.getValueAt(selectedRow, 2);
@@ -92,11 +92,16 @@ public class EmployeePanel extends JPanel {
         int currentRetireStatus = (int) tableModel.getValueAt(selectedRow, 6);
 
         JTextField nameField = new JTextField(currentName, 10);
+        nameField.setEditable(false); // make the field read-only
         JTextField genderField = new JTextField(currentGender, 10);
+        genderField.setEditable(false); // make the field read-only
         JTextField contactField = new JTextField(currentContact, 10);
         JTextField titleField = new JTextField(currentTitle, 10);
+        titleField.setEditable(false); // make the field read-only
         JTextField departmentIdField = new JTextField(String.valueOf(currentDepartmentId), 10);
+        departmentIdField.setEditable(false); // make the field read-only
         JTextField retireStatusField = new JTextField(String.valueOf(currentRetireStatus), 10);
+        retireStatusField.setEditable(false); // make the field read-only
 
         JPanel myPanel = new JPanel();
         myPanel.setLayout(new GridLayout(6, 2, 5, 5));
@@ -113,21 +118,16 @@ public class EmployeePanel extends JPanel {
         myPanel.add(new JLabel("Retire Status:"));
         myPanel.add(retireStatusField);
 
-        int result = JOptionPane.showConfirmDialog(null, myPanel, "Please Update Your Information", JOptionPane.OK_CANCEL_OPTION);
+        int result = JOptionPane.showConfirmDialog(null, myPanel, "Please Update Your Contact Information", JOptionPane.OK_CANCEL_OPTION);
         if (result == JOptionPane.OK_OPTION) {
             try (Connection conn = DatabaseConnection.getConnection()) {
                 conn.setAutoCommit(false); // Start transaction
 
-                // Update employee details
-                String updateSql = "UPDATE employee SET name=?, gender=?, contact=?, title=?, department_id=?, retire_status=? WHERE id=?";
+                // Update employee contact
+                String updateSql = "UPDATE employee SET contact=? WHERE id=?";
                 try (PreparedStatement updateStmt = conn.prepareStatement(updateSql)) {
-                    updateStmt.setString(1, nameField.getText().trim());
-                    updateStmt.setString(2, genderField.getText().trim());
-                    updateStmt.setString(3, contactField.getText().trim());
-                    updateStmt.setString(4, titleField.getText().trim());
-                    updateStmt.setInt(5, Integer.parseInt(departmentIdField.getText().trim()));
-                    updateStmt.setInt(6, Integer.parseInt(retireStatusField.getText().trim()));
-                    updateStmt.setInt(7, id);
+                    updateStmt.setString(1, contactField.getText().trim());
+                    updateStmt.setInt(2, id);
                     updateStmt.executeUpdate();
                 }
 
@@ -502,4 +502,3 @@ public class EmployeePanel extends JPanel {
         }
     }
 }
-//... (other methods remain the same)
